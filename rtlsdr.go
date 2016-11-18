@@ -10,6 +10,7 @@ package rtlsdr
 import (
 	"bytes"
 	"errors"
+	"sync"
 	"unsafe"
 )
 
@@ -50,7 +51,10 @@ type ReadAsyncCbT func([]byte)
 // ReadAsyncCbT2 defines a user callback function type.
 type ReadAsyncCbT2 func(*Context, []byte, interface{})
 
-var contexts [MaxDevices]*Context
+var (
+	contexts [MaxDevices]*Context
+	clock    = &sync.Mutex{}
+)
 
 // Context is the opened device's context.
 type Context struct {
@@ -221,15 +225,36 @@ func GetIndexBySerial(serial string) (index int, err error) {
 // Open returns an opened device based on index where index < MaxDevices.
 func Open(index int) (*Context, error) {
 	var dev *C.rtlsdr_dev_t
+
+	clock.Lock()
+	defer clock.Unlock()
+	idx := -1
+	for d := range contexts {
+		if contexts[d] == nil {
+			idx = d
+			break
+		}
+	}
+	if idx < 0 {
+		return nil, errors.New("max devices")
+	}
+
 	i := int(C.rtlsdr_open((**C.rtlsdr_dev_t)(&dev),
 		C.uint32_t(index)))
-	v := &Context{rtldev: dev, idx: index}
-	contexts[index] = v
-	return v, libError(i)
+	if i != 0 {
+		return nil, libError(i)
+	}
+
+	v := &Context{rtldev: dev, idx: idx}
+	contexts[idx] = v
+	return v, nil
 }
 
 // Close closes the device.
 func (dev *Context) Close() error {
+	clock.Lock()
+	defer clock.Unlock()
+
 	contexts[dev.idx] = nil
 	dev.idx = -1
 	i := int(C.rtlsdr_close(dev.rtldev)) // (*C.rtlsdr_dev_t)(dev)))
