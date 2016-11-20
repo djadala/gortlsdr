@@ -39,7 +39,7 @@ static inline rtlsdr_read_async_cb_t get_go_cb() {
 import "C"
 
 const (
-	Version = "2.10.0"
+	Version        = "2.10.0"
 	MaxOpenDevices = 10
 )
 
@@ -60,7 +60,7 @@ type Context struct {
 	clientCb  ReadAsyncCbT
 	clientCb2 ReadAsyncCbT2
 	userCtx   interface{}
-	idx        int
+	idx       int
 }
 
 // HwInfo holds dongle specific information.
@@ -169,37 +169,6 @@ var tunerTypes = map[uint32]string{
 	C.RTLSDR_TUNER_R828D:   "RTLSDR_TUNER_R828D",
 }
 
-/*
-type _contexts struct {
-	sync.RWMutex
-	contexts map[uint32]*Context
-}
-
-var contexts = &_contexts{contexts: make(map[uint32]*Context)}
-
-func (c *_contexts) get(id uint32) (ctx *Context) {
-	c.RLock()
-	ctx = c.contexts[id]
-	c.RUnlock()
-	return
-}
-
-func (c *_contexts) put(ctx *Context) (id uint32) {
-	id = rand.Uint32()
-	c.Lock()
-	c.contexts[id] = ctx
-	c.Unlock()
-	return
-}
-
-func (c *_contexts) del(id uint32) {
-	c.Lock()
-	delete(c.contexts, id)
-	c.Unlock()
-	return
-}
-*/
-
 func getError(errno int) error {
 	if err, ok := errMap[errno]; ok {
 		return err
@@ -283,13 +252,13 @@ func Open(index int) (*Context, error) {
 }
 
 // Close closes the device.
-// It is error to close device while in ReadAsync/ReadAsync2 call   
+// It is error to close device while in ReadAsync/ReadAsync2 call
 func (dev *Context) Close() error {
 	clock.Lock()
 	defer clock.Unlock()
 
 	if dev.clientCb != nil || dev.clientCb2 != nil {
-		panic ("close while in async call")
+		panic("close while in async call")
 	}
 
 	contexts[dev.idx] = nil
