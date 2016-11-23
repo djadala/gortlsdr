@@ -385,17 +385,23 @@ func (dev *Context) GetTunerType() (tunerType string) {
 //
 // Values are in tenths of dB, e.g. 115 means 11.5 dB.
 func (dev *Context) GetTunerGains() ([]int, error) {
-	buf := make([]int, 60) // a value larger than the max the gain count, ~30
-	i := int(C.rtlsdr_get_tuner_gains(dev.rtldev, (*C.int)(unsafe.Pointer(&buf[0]))))
-	switch {
-	case i == -1:
-		return nil, errors.New("device handle is invalid")
-	case i == -2:
-		return nil, errors.New("unknown tuner type")
-	case i < -2:
-		return nil, errors.New("unknown error")
+
+	i := int(C.rtlsdr_get_tuner_gains(dev.rtldev, (*C.int)(unsafe.Pointer(nil))))
+	if i <= 0 {
+		return nil, getError(i)
 	}
-	return buf[:i], nil
+	buf := make([]C.int, i)
+	i = int(C.rtlsdr_get_tuner_gains(dev.rtldev,
+		(*C.int)(unsafe.Pointer(&buf[0]))))
+	if i <= 0 {
+		return nil, getError(i)
+	}
+	gainsTenthsDb := make([]int, i)
+	for ii := 0; ii < i; ii++ {
+		gainsTenthsDb[ii] = int(buf[ii])
+	}
+
+	return gainsTenthsDb, nil
 }
 
 // SetTunerGain sets the tuner gain. Note, manual gain mode
